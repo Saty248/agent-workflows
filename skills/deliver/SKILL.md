@@ -59,6 +59,13 @@ remote PR checks run after publication.
 Enter documenting, update the owning docs/contracts when behavior changes, and
 perform author self-checks. Run verification again after any consequential edit.
 
+Run ponytail-review over the current task diff before independent review. Record
+its outcome and each finding's disposition in the plan. Apply accepted, scoped
+simplifications, then repeat affected validation and docs/self-checks. Preserve
+required behavior, security controls, tests, coverage, and project gates.
+Repeat this pass after each substantive repair. It is an author simplification
+pass; it does not replace the project's independent reviews or complexity report.
+
 ## Independent review and repair
 
 Enter reviewing. Follow the project's review policy, including tier, separate
@@ -75,7 +82,8 @@ For every actionable finding, including one discovered after publication:
    and invalidates downstream evidence. A material scope/design change returns
    to awaiting_approval before dependent implementation.
 3. Return to implementing; fix the cause and add regression protection.
-4. Repeat validating and documenting, including docs updates where needed.
+4. Repeat validating and documenting, including docs updates where needed and
+   the ponytail-review simplification pass over the updated diff.
 5. Obtain fresh required independent reviews over the updated change and verify
    that prior findings were resolved. Use the project's current review range.
 6. Publish/update only after the renewed gates pass.

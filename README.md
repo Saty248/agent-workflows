@@ -51,6 +51,7 @@ To update:
 ```bash
 cd ~/src/agent-workflows
 git pull --ff-only
+python3 install.py
 python3 install.py --check
 ```
 
@@ -102,7 +103,8 @@ point. If deliver is absent from the refreshed catalog, give the installed
 5. Implementation: `develop`, project `tdd`, and relevant specialist guidance.
 6. Behavior and local validation: `test` plus project `verify`.
 7. Docs and author checks: `document`, project `code-review`, and
-   `security-self-check` when relevant.
+   `security-self-check` when relevant, followed by `ponytail-review` before
+   independent review.
 8. Independent review: project `adversarial-review`, `security-review`, and
    `e2e-impact-review` under its policy. In SkyTrade's current policy,
    adversarial review applies at S1+ and separate security review at S2+.
@@ -112,8 +114,8 @@ point. If deliver is absent from the refreshed catalog, give the installed
 
 Use the project's documented equivalents when a named skill is unavailable.
 General skills never bypass project gates. The package bundles only `audit`,
-`scope`, `architect`, `develop`, `test`, `document`, `autopilot`, and `finish`.
-It does not vendor application-specific policies.
+`scope`, `architect`, `develop`, `test`, `document`, `autopilot`, `finish`, and
+`ponytail-review`. It does not vendor application-specific policies.
 
 Specialists are selected by the actual change: Spring guidance for Java,
 `jpa-patterns`/`database-migrations` for persistence, `plain-language` for copy,
@@ -124,7 +126,13 @@ Read the coordinator's routing reference for the complete selection rules.
 
 An actionable review finding returns through:
 plan amendment -> implementation -> regression protection -> local validation ->
-docs/self-checks -> fresh required independent reviews -> publish/update -> watch.
+docs/self-checks -> ponytail-review -> fresh required independent reviews ->
+publish/update -> watch.
+
+The simplification pass records findings and their dispositions. Accepted changes
+return through validation before independent review. It preserves required
+behavior, security controls, tests, coverage, and project gates; it does not
+replace any independent complexity/debt assessment.
 
 Use project `diagnosing-bugs` or `build-fix` for the relevant failure. A scoped
 amendment invalidates downstream evidence. A material scope/design change revokes

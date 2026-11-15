@@ -17,6 +17,9 @@ Do not run every installed skill or repeat equivalent checks.
   Personal check is a fallback when the project has no verification procedure.
 - Docs and self-check: personal document as needed; project code-review and
   security-self-check as applicable.
+- Simplification: ponytail-review after author checks and before independent
+  review, repeated after substantive repairs. Use the project's version when
+  supplied, otherwise the bundled version. Record findings and dispositions.
 - Independent review: project adversarial-review, security-review, and
   e2e-impact-review at their policy thresholds. Preserve the original reports.
 - Publication: project create-pr and its required publishing script.
@@ -42,7 +45,7 @@ Use the project's guidance for the actual change:
 ## Missing capabilities
 
 The bundle supplies audit, scope, architect, develop, test, document, autopilot,
-and finish as personal dependencies. Existing local skills are preserved by the
+finish, and ponytail-review. Existing local skills are preserved by the
 installer; inspect the actual installed version before use.
 
 Specialist and repository-policy skills remain in the project checkout; this
