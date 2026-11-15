@@ -99,27 +99,33 @@ point. If deliver is absent from the refreshed catalog, give the installed
 ### Main workflow
 
 The normal path starts with a problem and stops for approval of a specific plan.
-The later diagrams expand the review and PR loops.
+The later diagrams expand the review and PR loops. `deliver` coordinates every
+stage; each node names its supporting skills or tools. Approval is a human
+action. Checkpoint actions use the helper bundled with `deliver`.
 
 ```mermaid
 flowchart TD
-    problem["Describe the problem"] --> analyze["Analyze and design: audit, scope, architect as needed"]
-    analyze --> plan["Draft the task plan: plan, spec-create when needed"]
-    plan --> approval{"User approves this plan?"}
+    problem["Describe the problem<br/>You + deliver"] --> context["Load project guidance<br/>workflow, ponytail, codeguard"]
+    context --> analyze["Analyze and design<br/>audit, scope<br/>architect when needed"]
+    analyze --> plan["Draft the task plan<br/>plan; spec-create when needed"]
+    plan --> approval{"User approves this plan?<br/>Human action; deliver records it"}
     approval -->|Revise| plan
-    approval -->|Yes| implement["Implement: develop, tdd, specialist guidance"]
-    implement --> validate["Test and validate locally: test, verify"]
-    validate --> docs["Update docs and perform author checks"]
-    docs --> simplify["Simplification pass: ponytail-review"]
-    simplify --> reviews["Independent reviews required by project policy"]
-    reviews --> publish["Publish and link the PR: create-pr"]
-    publish --> maintain["Maintain the PR: autopilot and T3 watcher"]
-    maintain -->|Latest head satisfies all gates| finish["Finish, stop the watch, and notify you"]
+    approval -->|Yes| implement["Implement<br/>develop, tdd<br/>Relevant specialist skills"]
+    implement --> validate["Test and validate locally<br/>test, verify"]
+    validate --> docs["Docs and author checks<br/>document, code-review<br/>security-self-check when relevant"]
+    docs --> simplify["Simplification pass<br/>ponytail-review"]
+    simplify --> reviews["Independent reviews per policy<br/>adversarial-review, security-review<br/>e2e-impact-review"]
+    reviews --> publish["Publish and link the PR<br/>create-pr + link_pull_request"]
+    publish --> maintain["Maintain the PR<br/>autopilot + watch_pull_request"]
+    maintain -->|Latest head satisfies all gates| finish["Final checks and notification<br/>finish + unwatch_pull_request"]
 ```
 
 This overview shows the successful path. Failed checks, actionable findings,
 scope changes, and external blockers follow the loops below. Planning-only mode
 stops at the plan; it does not proceed to implementation or publication.
+Project skills and review thresholds apply as described below. The functions
+`link_pull_request`, `watch_pull_request`, and `unwatch_pull_request` are T3
+tools, not separate skills.
 
 1. Context and constraints: project `workflow`, `ponytail`, and `codeguard`.
 2. Investigation and scope: `audit`, `scope`, and `architect` when needed.
@@ -154,24 +160,24 @@ by CI or reviewers after publication.
 
 ```mermaid
 flowchart TD
-    finding["Actionable review finding or CI failure"] --> diagnose["Diagnose the cause and propose a correction"]
-    diagnose --> scope{"Material scope or design change?"}
-    scope -->|Yes| revise["Revise the plan and revoke its approval"]
-    revise --> approve{"User approves the revised plan?"}
+    finding["Actionable finding or CI failure<br/>Reviewer or CI evidence"] --> diagnose["Diagnose and propose a correction<br/>diagnosing-bugs or build-fix"]
+    diagnose --> scope{"Material scope/design change?<br/>deliver; scope/architect as needed"}
+    scope -->|Yes| revise["Revise plan and revoke approval<br/>plan + deliver checkpoint"]
+    revise --> approve{"User approves the revised plan?<br/>Human action; deliver records it"}
     approve -->|Needs changes| revise
-    approve -->|Yes| implement["Implement the fix and regression protection"]
-    scope -->|No| amend["Record an amendment within the approved scope"]
+    approve -->|Yes| implement["Implement fix and regression protection<br/>develop, tdd, test"]
+    scope -->|No| amend["Record a scoped amendment<br/>plan + deliver checkpoint"]
     amend --> implement
-    implement --> validate["Run affected tests and required local checks"]
-    validate --> passed{"Validation passes?"}
+    implement --> validate["Run tests and required local checks<br/>test, verify"]
+    validate --> passed{"Validation passes?<br/>verify results"}
     passed -->|No| implement
-    passed -->|Yes| docs["Update docs and repeat author checks"]
-    docs --> simplify["Run ponytail-review on the updated diff"]
+    passed -->|Yes| docs["Docs and author checks<br/>document, code-review<br/>security-self-check when relevant"]
+    docs --> simplify["Review the updated diff<br/>ponytail-review"]
     simplify -->|Apply accepted simplifications| implement
-    simplify -->|Pass complete| reviews["Obtain fresh required independent reviews"]
-    reviews --> blockers{"Unresolved actionable findings?"}
+    simplify -->|Pass complete| reviews["Fresh independent reviews per policy<br/>adversarial-review, security-review<br/>e2e-impact-review"]
+    reviews --> blockers{"Actionable findings remain?<br/>deliver checks review reports"}
     blockers -->|Yes| finding
-    blockers -->|No| publish["Refresh the review packet, publish, and enter the PR loop"]
+    blockers -->|No| publish["Refresh packet and publish<br/>create-pr; then the PR loop below"]
 ```
 
 The simplification pass records findings and their dispositions. Accepted changes
@@ -205,17 +211,17 @@ may intentionally cancel CI until external reviews pass.
 
 ```mermaid
 flowchart TD
-    push["Create PR or push validated fixes"] --> link["Link PR to the T3 thread"]
-    link --> refresh["Refresh live head, checks,<br/>reviews, and conflicts"]
-    refresh --> state{"What remains?"}
-    state -->|Fix needed| repair["Run the complete repair loop"]
+    push["Create PR or push validated fixes<br/>create-pr"] --> link["Link PR to the T3 thread<br/>link_pull_request"]
+    link --> refresh["Refresh head, checks, reviews, conflicts<br/>autopilot + GitHub tools"]
+    refresh --> state{"What remains?<br/>autopilot triage"}
+    state -->|Fix needed| repair["Run the repair loop above<br/>deliver + the listed repair skills"]
     repair --> push
-    state -->|Pending| watch["Wait on T3 watch<br/>Attach it if needed"]
-    watch --> yield["End the turn while waiting"]
-    yield --> event["T3 resumes on a PR event"]
+    state -->|Pending| watch["Wait on the watch; attach if needed<br/>watch_pull_request"]
+    watch --> yield["End the turn while waiting<br/>deliver hands control to T3"]
+    yield --> event["Resume on a PR event<br/>T3 host"]
     event --> refresh
-    state -->|Ready| finish["Run finish, stop the watch,<br/>and notify readiness"]
-    state -->|Blocked| blocked["Record blocker, stop the watch,<br/>and notify you"]
+    state -->|Ready| finish["Final checks and readiness notification<br/>finish + unwatch_pull_request"]
+    state -->|Blocked| blocked["Record blocker and notify you<br/>deliver checkpoint + unwatch_pull_request"]
     blocked -->|Explicit resume| refresh
 ```
 
