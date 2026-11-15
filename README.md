@@ -96,6 +96,31 @@ point. If deliver is absent from the refreshed catalog, give the installed
 
 ## Workflow and skill routing
 
+### Main workflow
+
+The normal path starts with a problem and stops for approval of a specific plan.
+The later diagrams expand the review and PR loops.
+
+```mermaid
+flowchart TD
+    problem["Describe the problem"] --> analyze["Analyze and design: audit, scope, architect as needed"]
+    analyze --> plan["Draft the task plan: plan, spec-create when needed"]
+    plan --> approval{"User approves this plan?"}
+    approval -->|Revise| plan
+    approval -->|Yes| implement["Implement: develop, tdd, specialist guidance"]
+    implement --> validate["Test and validate locally: test, verify"]
+    validate --> docs["Update docs and perform author checks"]
+    docs --> simplify["Simplification pass: ponytail-review"]
+    simplify --> reviews["Independent reviews required by project policy"]
+    reviews --> publish["Publish and link the PR: create-pr"]
+    publish --> maintain["Maintain the PR: autopilot and T3 watcher"]
+    maintain -->|Latest head satisfies all gates| finish["Finish, stop the watch, and notify you"]
+```
+
+This overview shows the successful path. Failed checks, actionable findings,
+scope changes, and external blockers follow the loops below. Planning-only mode
+stops at the plan; it does not proceed to implementation or publication.
+
 1. Context and constraints: project `workflow`, `ponytail`, and `codeguard`.
 2. Investigation and scope: `audit`, `scope`, and `architect` when needed.
 3. Reviewable plan: project `plan`; `spec-create` for a new durable contract.
@@ -124,10 +149,30 @@ Read the coordinator's routing reference for the complete selection rules.
 
 ## Bugs, risks, and the repair loop
 
-An actionable review finding returns through:
-plan amendment -> implementation -> regression protection -> local validation ->
-docs/self-checks -> ponytail-review -> fresh required independent reviews ->
-publish/update -> watch.
+The same repair path handles findings before publication and problems discovered
+by CI or reviewers after publication.
+
+```mermaid
+flowchart TD
+    finding["Actionable review finding or CI failure"] --> diagnose["Diagnose the cause and propose a correction"]
+    diagnose --> scope{"Material scope or design change?"}
+    scope -->|Yes| revise["Revise the plan and revoke its approval"]
+    revise --> approve{"User approves the revised plan?"}
+    approve -->|Needs changes| revise
+    approve -->|Yes| implement["Implement the fix and regression protection"]
+    scope -->|No| amend["Record an amendment within the approved scope"]
+    amend --> implement
+    implement --> validate["Run affected tests and required local checks"]
+    validate --> passed{"Validation passes?"}
+    passed -->|No| implement
+    passed -->|Yes| docs["Update docs and repeat author checks"]
+    docs --> simplify["Run ponytail-review on the updated diff"]
+    simplify -->|Apply accepted simplifications| implement
+    simplify -->|Pass complete| reviews["Obtain fresh required independent reviews"]
+    reviews --> blockers{"Unresolved actionable findings?"}
+    blockers -->|Yes| finding
+    blockers -->|No| publish["Refresh the review packet, publish, and enter the PR loop"]
+```
 
 The simplification pass records findings and their dispositions. Accepted changes
 return through validation before independent review. It preserves required
@@ -157,6 +202,31 @@ Honor any host/project lifecycle rules that supersede this reference.
 A wake alone is not success. Re-read the latest head, expected check results,
 review decisions, unresolved threads, and mergeability. Project AI-review holds
 may intentionally cancel CI until external reviews pass.
+
+```mermaid
+flowchart TD
+    push["Create PR or push validated fixes"] --> link["Link PR to the T3 thread"]
+    link --> refresh["Refresh live head, checks,<br/>reviews, and conflicts"]
+    refresh --> state{"What remains?"}
+    state -->|Fix needed| repair["Run the complete repair loop"]
+    repair --> push
+    state -->|Pending| watch["Wait on T3 watch<br/>Attach it if needed"]
+    watch --> yield["End the turn while waiting"]
+    yield --> event["T3 resumes on a PR event"]
+    event --> refresh
+    state -->|Ready| finish["Run finish, stop the watch,<br/>and notify readiness"]
+    state -->|Blocked| blocked["Record blocker, stop the watch,<br/>and notify you"]
+    blocked -->|Explicit resume| refresh
+```
+
+Triage conflicts first, then active review comments, then failing CI. The watch
+persists across wakes and pushes, so the waiting loop reuses it. A wake about
+green checks still returns through the live-state check; results for an older
+commit do not complete the task.
+
+Pending includes running checks, required reviews, and intentional AI-review
+holds. Blocked includes a decision needed from you, missing access, or the repair
+retry limit. Ready requires all completion gates for the latest pushed head.
 
 The agent reports ready only when checks and policy-required reviews are
 satisfied for the latest pushed commit. Human approvals remain human work.
