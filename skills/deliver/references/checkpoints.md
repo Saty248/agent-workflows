@@ -34,10 +34,27 @@ write atomically under a local process lock. The lock serializes checkpoint
 writes; it is not a cross-machine or whole-task execution lock.
 
 Normal phases are implementing, validating, documenting, reviewing, publishing,
-watching, and ready. Repair paths return to implementing. Mark blocked with
+watching, and ready. Ready means green and still monitored until merged/closed;
+it is not completion. Late suggestions or conflicts return to implementing,
+then validation and review. Mark blocked with
 `block --reason "..."`; `resume` restores the previous phase but still checks
 the plan and approval. Watching and ready require evidence and a full head SHA;
 ready also requires a PR URL. The host must verify those claims against GitHub.
+
+After freshly observing the tracked PR merged or closed, use:
+
+```bash
+python3 <deliver-skill>/scripts/checkpoint.py --project /path/to/project --task retry-fix complete --outcome merged --head <observed-pr-head-sha> --evidence "Fresh PR state is MERGED; include merge details"
+```
+
+Use outcome closed for a PR closed without merge. This command requires a tracked
+PR, a full observed head SHA, and evidence. It can record closure while blocked
+or with an outdated plan/checkout, because external PR state is authoritative.
+It does not perform a GitHub lookup; the caller must first verify the outcome.
+Merged/closed checkpoints reject further mutations. Stop the T3 watch and notify
+the user after recording the outcome. A reopened PR needs an explicit new task.
+Terminal status remains readable if the plan has been archived or is unreadable;
+plan_matches is null when its contents cannot be checked.
 
 Checkpoint JSON and approved-plan snapshots are private local state, outside the
 application and skill repositories. They contain no credentials. They are a

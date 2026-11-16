@@ -2,7 +2,8 @@
 
 An approval-gated coding workflow for T3 Code. Start with a problem, review a
 concrete plan, and then let the agent implement, test, obtain independent
-reviews, open a PR, and repair CI or review findings until it can report readiness.
+reviews, open a PR, and maintain it through feedback and conflicts until it is
+merged or closed. Passing CI reports readiness and keeps monitoring active.
 
 This repository is personal tooling. Install it in your home directory; it adds
 no workflow files, dependencies, or configuration to an application repository.
@@ -73,8 +74,8 @@ In a T3 conversation opened on your application checkout:
 
 Review the plan, then reply:
 
-> Approve this plan. Implement it, open the PR, and maintain it until checks and
-> reviews pass.
+> Approve this plan. Implement it, open the PR, and keep watching and fixing
+> in-scope findings until the PR is merged or closed.
 
 Approval must identify the current plan/scope. Routine repairs within that scope
 continue automatically; material design/scope changes return for your approval.
@@ -117,7 +118,9 @@ flowchart TD
     simplify --> reviews["Independent reviews per policy<br/>adversarial-review, security-review<br/>e2e-impact-review"]
     reviews --> publish["Publish and link the PR<br/>create-pr + link_pull_request"]
     publish --> maintain["Maintain the PR<br/>autopilot + watch_pull_request"]
-    maintain -->|Latest head satisfies all gates| finish["Final checks and notification<br/>finish + unwatch_pull_request"]
+    maintain -->|Latest head satisfies all gates| ready["Report newly ready head<br/>finish; keep watching"]
+    ready --> maintain
+    maintain -->|PR merged or closed| finish["Record outcome and notify you<br/>deliver checkpoint + unwatch_pull_request"]
 ```
 
 This overview shows the successful path. Failed checks, actionable findings,
@@ -140,8 +143,9 @@ tools, not separate skills.
    `e2e-impact-review` under its policy. In SkyTrade's current policy,
    adversarial review applies at S1+ and separate security review at S2+.
 9. Publish: project `create-pr`, including its review packet and wrapper.
-10. Maintain: `autopilot` for triage plus T3's PR watcher.
-11. Handoff: `finish`, based on fresh evidence for the latest pushed commit.
+10. Maintain until merged/closed: `autopilot` for triage plus T3's PR watcher.
+11. Report readiness: `finish`, based on the latest head; keep watching.
+12. Final handoff: `deliver` records a confirmed merge/closure and stops the watch.
 
 Use the project's documented equivalents when a named skill is unavailable.
 General skills never bypass project gates. The package bundles only `audit`,
@@ -195,8 +199,19 @@ checks run before commits, including repair commits. It never weakens tests or
 gates to manufacture a green result.
 
 After three unsuccessful repairs of the same cause without resolution, it
-reports the evidence and asks for direction. Missing tools/access, external
-outages, and decisions requiring you are reported as blockers.
+reports the evidence and asks for direction before retrying that cause. Missing
+tools/access, external outages, and decisions requiring you pause dependent
+fixes. The open PR remains watched while awaiting a decision or new evidence.
+If the watcher itself is unavailable, the agent reports that limitation and
+preserves progress rather than claiming monitoring is active.
+
+Reviewer suggestions are checked against the actual code and approved scope.
+Valid fixes use the complete repair loop; invalid or already-addressed comments
+receive an evidence-backed explanation. The agent replies with the fix commit
+or rationale and resolves threads when authorized. It integrates the latest
+remote PR branch and base before resolving conflicts, preserves both branches'
+intent, verifies the resolution, and pushes without force. Conflicting intent
+or material scope changes return to you for a decision.
 
 ## Watching and completion
 
@@ -205,24 +220,28 @@ completion, reviews/comments, or conflicts. The agent ends its turn while
 waiting. It uses no polling daemon, shell wait loop, or recurring scheduled task.
 Honor any host/project lifecycle rules that supersede this reference.
 
-A wake alone is not success. Re-read the latest head, expected check results,
-review decisions, unresolved threads, and mergeability. Project AI-review holds
-may intentionally cancel CI until external reviews pass.
+A wake alone is not success. Read the PR state first; a confirmed merge or
+closure ends maintenance before further edits. For an open PR, re-read its
+latest head, checks, reviews, unresolved threads, and mergeability. Project
+AI-review holds may intentionally cancel CI until external reviews pass.
 
 ```mermaid
 flowchart TD
     push["Create PR or push validated fixes<br/>create-pr"] --> link["Link PR to the T3 thread<br/>link_pull_request"]
     link --> refresh["Refresh head, checks, reviews, conflicts<br/>autopilot + GitHub tools"]
-    refresh --> state{"What remains?<br/>autopilot triage"}
+    refresh --> prstate{"PR state?<br/>deliver + GitHub tools"}
+    prstate -->|Merged or closed| outcome["Record observed outcome and notify<br/>deliver checkpoint + unwatch_pull_request"]
+    prstate -->|Open| state{"What remains?<br/>autopilot triage"}
     state -->|Fix needed| repair["Run the repair loop above<br/>deliver + the listed repair skills"]
     repair --> push
     state -->|Pending| watch["Wait on the watch; attach if needed<br/>watch_pull_request"]
     watch --> yield["End the turn while waiting<br/>deliver hands control to T3"]
     yield --> event["Resume on a PR event<br/>T3 host"]
     event --> refresh
-    state -->|Ready| finish["Final checks and readiness notification<br/>finish + unwatch_pull_request"]
-    state -->|Blocked| blocked["Record blocker and notify you<br/>deliver checkpoint + unwatch_pull_request"]
-    blocked -->|Explicit resume| refresh
+    state -->|Ready| ready["Report newly ready head once<br/>finish; keep the watch"]
+    ready --> watch
+    state -->|Blocked| blocked["Record blocker and await a decision<br/>deliver checkpoint; keep the watch"]
+    blocked --> watch
 ```
 
 Triage conflicts first, then active review comments, then failing CI. The watch
@@ -232,12 +251,20 @@ commit do not complete the task.
 
 Pending includes running checks, required reviews, and intentional AI-review
 holds. Blocked includes a decision needed from you, missing access, or the repair
-retry limit. Ready requires all completion gates for the latest pushed head.
+retry limit. Ready requires all readiness gates for the latest pushed head and
+is still an active monitoring state.
 
-The agent reports ready only when checks and policy-required reviews are
-satisfied for the latest pushed commit. Human approvals remain human work.
-It stops its watch before terminal handoff and does not merge, enable auto-merge,
-deploy, or change draft status without a separate explicit request.
+The agent reports each newly ready head/state once, then keeps watching for
+late suggestions, CI failures, and conflicts. It repeats verification and
+required reviews after repairs and pushes the validated update. A green PR is
+not the end of the task. Human approvals and merging remain human work.
+
+Maintenance finishes only after a fresh read confirms merged or closed, or you
+explicitly stop or hand off the task. Merged and closed-without-merge outcomes
+are reported distinctly; closed PRs are not automatically reopened. The agent
+records the outcome and stops its watch before terminal handoff. It does not
+merge, enable auto-merge, deploy, or change draft status without a separate
+explicit request.
 
 The watcher depends on the T3 host remaining available. A laptop that is offline
 cannot process events. Skill Git sync does not migrate sessions, credentials,
@@ -255,6 +282,10 @@ The helper rejects an unapproved implementation transition or an unrecorded plan
 edit. It serializes local checkpoint writes and writes files atomically.
 The model still owns scope judgement and the authenticity of cited approval.
 A checkpoint is not proof that CI ran or an independent reviewer approved.
+`ready` remains repairable and monitored. A `complete` command records a freshly
+observed merged/closed outcome with the remote PR head and evidence. Terminal
+checkpoints reject further mutations; they do not depend on the local checkout
+having caught up with the PR.
 
 Project-required plans still go in the project's mandated location and may be
 part of a real task PR. The personal workflow definitions and runtime checkpoint
@@ -268,5 +299,6 @@ python3 install.py --check
 ```
 
 Tests exercise approval invalidation, repair transitions, private checkpoint
-storage, installer conflicts, idempotence, uninstall, and shell-safe paths.
+storage, ready-to-repair transitions, merged/closed outcomes, installer conflicts,
+idempotence, uninstall, and shell-safe paths.
 No application services or Docker containers are started.

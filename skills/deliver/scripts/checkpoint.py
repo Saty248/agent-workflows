@@ -97,8 +97,15 @@ def run(args, project, directory):
         state = json.loads(path.read_text())
         if state["project"] != str(project) or state["task"] != args.task:
             raise ValueError("Checkpoint identity mismatch")
+    if state["phase"] in {"merged", "closed"} and args.command != "status":
+        raise ValueError("PR maintenance is complete; start a new task for new work")
     if args.command == "status":
-        state["plan_matches"] = digest(plan_text(state)) == state["plan_sha256"]
+        try:
+            state["plan_matches"] = digest(plan_text(state)) == state["plan_sha256"]
+        except OSError:
+            if state["phase"] not in {"merged", "closed"}:
+                raise
+            state["plan_matches"] = None
         return state
     if args.command == "approve":
         if state["phase"] != "awaiting_approval":
@@ -109,6 +116,16 @@ def run(args, project, directory):
                              "plan_sha256": state["plan_sha256"]}
         atomic_write(directory / "approved-plan.md", text.decode("utf-8"))
         state["phase"] = "implementing"
+    elif args.command == "complete":
+        if not state.get("pr"):
+            raise ValueError("Track the PR before recording its outcome")
+        if not re.fullmatch(r"[a-f0-9]{40}|[a-f0-9]{64}", args.head):
+            raise ValueError("Use the full head SHA observed on the PR")
+        # Closure is external state, even if local code or the plan has changed.
+        state["phase"] = args.outcome
+        state["head"] = args.head
+        state["last_evidence"] = args.evidence
+        state.pop("resume_phase", None)
     elif args.command == "amend":
         if args.within_scope:
             if not state.get("approval"):
@@ -187,6 +204,10 @@ def main():
     block.add_argument("--reason", type=nonblank, required=True)
     commands.add_parser("resume")
     commands.add_parser("status")
+    complete = commands.add_parser("complete")
+    complete.add_argument("--outcome", choices=["merged", "closed"], required=True)
+    complete.add_argument("--head", required=True)
+    complete.add_argument("--evidence", type=nonblank, required=True)
     args = parser.parse_args()
     if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", args.task) or len(args.task) > 64:
         parser.error("Task must be a lowercase slug of at most 64 characters")

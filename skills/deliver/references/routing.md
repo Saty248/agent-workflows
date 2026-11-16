@@ -23,10 +23,12 @@ Do not run every installed skill or repeat equivalent checks.
 - Independent review: project adversarial-review, security-review, and
   e2e-impact-review at their policy thresholds. Preserve the original reports.
 - Publication: project create-pr and its required publishing script.
-- PR maintenance: personal autopilot plus the T3 PR watcher.
+- PR maintenance: personal autopilot for triage plus the T3 PR watcher, kept
+  active after green CI until the PR is merged or closed.
 - Diagnosis: project diagnosing-bugs and build-fix when applicable; personal
   debug is a fallback if supplied by the user.
-- Handoff: personal finish, checked against the current head.
+- Readiness: personal finish, checked against the current head; keep watching.
+- Final handoff: deliver records a confirmed merge/closure and stops the watch.
 
 ## Specialist routing
 

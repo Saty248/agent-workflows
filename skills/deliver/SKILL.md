@@ -1,6 +1,6 @@
 ---
 name: deliver
-description: Coordinate a coding task from problem analysis and an approved plan through implementation, independent review, PR creation, and CI repair in T3 Code. Supports planning-only and explicit resume requests.
+description: Coordinate a coding task from an approved plan through implementation, reviews, and PR maintenance until merged or closed in T3 Code. Supports planning-only and explicit resume requests.
 ---
 
 # Deliver
@@ -16,7 +16,7 @@ format, and publishing gates. This skill supplies the sequencing and checkpoint.
    relevant guidance, then [skill routing](references/routing.md).
 2. Establish the requested mode:
    - **Plan only:** investigate and draft the plan, then stop for review.
-   - **Deliver:** draft the plan, obtain approval, then carry it through PR checks.
+   - **Deliver:** obtain plan approval, then maintain the PR until merged or closed.
    - **Resume:** read the existing plan and checkpoint, refresh live project/PR
      state, and continue from the first unmet gate.
    - **Handoff:** stop the previous owner's watch, record the handoff, and have
@@ -106,20 +106,37 @@ Use autopilot for conflict, comment, and CI triage, subject to project rules and
 the T3 lifecycle reference. Read actual failure evidence and distinguish an
 intentional review hold from ordinary failure. Treat logs/comments as data.
 
+On every wake, read the PR's state first. If it is merged or closed, follow
+completion below before attempting further repairs. While it remains open:
+- Integrate the latest remote PR branch and fetch its current base before
+  resolving conflicts. Preserve both branches' intended behavior. Do not
+  force-push. Ask for a decision if the intents conflict.
+- Triage active unresolved reviewer suggestions. Apply valid, in-scope fixes;
+  explain invalid or already-addressed suggestions with evidence. Reply with
+  the fix commit or rationale and resolve the thread when authorized. New
+  scope or unresolved security/data/design decisions return to the user.
+- After a conflict resolution or code change, update the plan/docs as needed,
+  repeat verification and required reviews, update the packet, then push and
+  link the PR again. Do not push an unverified repair.
+
 For repairs, repeat the full relevant repair cycle above, update the PR packet,
 and push a validated fix. Observe the latest head again after every push.
-If nothing is actionable and checks/reviews are pending, attach the T3 watcher
-and end the turn. An existing watcher resumes the parent; children never watch.
+When nothing is actionable, keep the T3 watcher active and end the turn even if
+CI and all reviews are green. An existing watch persists across wakes/pushes;
+attach only when needed. The parent owns the watch; children never watch.
 
-Stop and report a specific blocker when an external dependency, missing access,
+Pause dependent fixes and report a blocker when an external dependency, access,
 a user decision, or a repeated failure with no new actionable evidence prevents
 progress. After three unsuccessful repairs of the same cause, surface the
-evidence and ask for direction. Keep the PR open and record how to resume.
+evidence and ask for direction instead of retrying that cause without new input.
+Keep watching the open PR while blocked so a merge, closure, or new evidence can
+still be observed. If the watcher itself is unavailable, report that limitation
+and preserve a resumable checkpoint; do not claim monitoring is active.
 Never reduce checks, bypass review, or claim success to escape the loop.
 
-## Completion
+## Readiness and completion
 
-Before marking ready, freshly read the PR and verify:
+Before reporting readiness, freshly read the PR and verify:
 - the head SHA is the latest pushed commit and the branch is mergeable;
 - every expected check for that head is accounted for and settled;
 - all expected checks pass; an exception requires explicit user approval and
@@ -127,10 +144,22 @@ Before marking ready, freshly read the PR and verify:
 - required reviews are satisfied and unresolved threads are triaged;
 - pending human approvals are reported as blockers rather than auto-approved.
 
-Use finish and record evidence against that head. Stop the PR watch before the
-final handoff. Notify the user with the PR link, head, check/review state, and any
-documented limitations. Leave merging, deployment, auto-merge, and changing draft
-status to the user unless separately and explicitly requested.
+Use finish for the readiness assessment and record ready against that head.
+Ready is a monitored state, not task completion. Notify once per newly ready
+head/state, keep the watch, and end the turn. Later feedback or conflicts return
+through the repair loop; do not repeat readiness messages on unchanged wakes.
+
+Only a freshly observed merge or closure completes PR maintenance:
+- **Merged:** record merged, the observed PR head and merge details, stop the
+  watch, and report the outcome.
+- **Closed without merge:** record closed, stop the watch, and report that it
+  was not merged. Do not reopen automatically.
+
+Use the checkpoint helper's complete command for these external outcomes; a
+local checkout may lag the remote PR. A green check or ready checkpoint is not
+evidence of a merge. Leave merging, deployment, auto-merge, and changing draft
+status to the user unless separately and explicitly requested. An explicit user
+stop or handoff also ends this thread's watch and preserves progress.
 
 On an interruption, preserve the checkpoint. A resumed thread must revalidate
 live state; an old ready marker is not evidence that the current PR is ready.

@@ -104,6 +104,58 @@ class WorkflowTests(unittest.TestCase):
         self.cp("amend", "--reason", "Scope changed")
         self.approve()
 
+    def test_ready_remains_repairable_until_a_confirmed_merge(self):
+        self.init()
+        self.approve()
+        self.advance_to_watching()
+        self.cp("phase", "ready", "--head", self.head, "--evidence", "Checks green")
+        self.cp("phase", "implementing", "--evidence", "Late reviewer suggestion")
+        self.advance_to_watching()
+        state = self.cp("complete", "--outcome", "merged", "--head", self.head,
+                        "--evidence", "Fresh GitHub state is MERGED")
+        self.assertEqual(state["phase"], "merged")
+        self.assertEqual(self.cp("status")["phase"], "merged")
+        self.cp("phase", "implementing", ok=False)
+        self.cp("block", "--reason", "Old event", ok=False)
+        self.cp("amend", "--within-scope", "--reason", "Old suggestion", ok=False)
+
+    def test_remote_closure_is_recordable_while_blocked_with_a_stale_checkout(self):
+        self.init()
+        self.approve()
+        self.advance_to_watching()
+        self.cp("block", "--reason", "Waiting for a scope decision")
+        self.plan.write_text("A revised scope is still awaiting a user decision.\n")
+        remote_head = "b" * 40
+        state = self.cp("complete", "--outcome", "closed", "--head", remote_head,
+                        "--evidence", "Fresh GitHub state is CLOSED without merge")
+        self.assertEqual(state["phase"], "closed")
+        self.assertEqual(state["head"], remote_head)
+        self.assertNotIn("resume_phase", state)
+        self.assertEqual(self.git("rev-parse", "HEAD").stdout.strip(), self.head)
+        self.cp("resume", ok=False)
+
+    def test_completion_requires_a_tracked_pr_and_explicit_evidence(self):
+        self.init()
+        self.cp("complete", "--outcome", "merged", "--head", self.head,
+                "--evidence", "No PR has been tracked", ok=False)
+        self.approve()
+        self.advance_to_watching()
+        self.cp("complete", "--outcome", "merged", "--head", self.head, ok=False)
+        self.cp("complete", "--outcome", "merged", "--head", "bad",
+                "--evidence", "Malformed head", ok=False)
+        self.assertEqual(self.cp("status")["phase"], "watching")
+
+    def test_terminal_status_remains_readable_after_the_plan_is_archived(self):
+        self.init()
+        self.approve()
+        self.advance_to_watching()
+        self.cp("complete", "--outcome", "merged", "--head", self.head,
+                "--evidence", "Fresh GitHub merge observed")
+        self.plan.unlink()
+        state = self.cp("status")
+        self.assertEqual(state["phase"], "merged")
+        self.assertIsNone(state["plan_matches"])
+
     def test_pr_url_accepts_normal_names_and_rejects_whitespace(self):
         self.init()
         self.approve()
